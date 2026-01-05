@@ -1,65 +1,259 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import { processImageToBitmap, loadImageFromFile, exportToPNG, exportToSVG } from './lib/imageProcessor';
 
 export default function Home() {
+  const [gridSlider, setGridSlider] = useState(5); // Slider value (5~50)
+  const gridCount = gridSlider * 2; // Actual grid count (10~100)
+  const [isGrayscale, setIsGrayscale] = useState(false);
+  const [threshold, setThreshold] = useState(25);
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load default image
+  useEffect(() => {
+    const defaultImg = new Image();
+    defaultImg.onload = () => {
+      setImage(defaultImg);
+      setImageUrl('/examples/01.jpg');
+    };
+    defaultImg.src = '/examples/01.jpg';
+  }, []);
+
+  const loadExampleImage = (exampleNumber: number) => {
+    const img = new Image();
+    img.onload = () => {
+      setImage(img);
+      setImageUrl(`/examples/${String(exampleNumber).padStart(2, '0')}.jpg`);
+    };
+    img.src = `/examples/${String(exampleNumber).padStart(2, '0')}.jpg`;
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      loadImageFromFile(file, (img, url) => {
+        setImage(img);
+        setImageUrl(url);
+      });
+    }
+  };
+
+  const handleExportPNG = () => {
+    if (canvasRef.current) {
+      exportToPNG(canvasRef.current, 'bitmap.png');
+    }
+  };
+
+  const handleExportSVG = () => {
+    if (canvasRef.current && image) {
+      exportToSVG(canvasRef.current, image, gridCount, 'bitmap.svg');
+    }
+  };
+
+  useEffect(() => {
+    if (image && canvasRef.current) {
+      processImageToBitmap({
+        image,
+        canvas: canvasRef.current,
+        gridCount,
+        isGrayscale,
+        threshold,
+      });
+    }
+  }, [image, gridCount, isGrayscale, threshold]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="h-screen w-screen flex bg-white dark:bg-black">
+      {/* Left control panel */}
+      <div className="w-80 bg-white dark:bg-black border-r border-black dark:border-white p-6 flex flex-col gap-6">
+        <h1 className="text-2xl font-bold text-black dark:text-white">
+          Design Tool
+        </h1>
+
+        {/* Color mode toggle */}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-black dark:text-white">
+            Color Mode
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsGrayscale(false)}
+              className={`flex-1 px-4 py-2 border-2 font-medium transition-colors ${
+                !isGrayscale
+                  ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white'
+                  : 'bg-white text-black border-black dark:bg-black dark:text-white dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black'
+              }`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Color
+            </button>
+            <button
+              onClick={() => setIsGrayscale(true)}
+              className={`flex-1 px-4 py-2 border-2 font-medium transition-colors ${
+                isGrayscale
+                  ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white'
+                  : 'bg-white text-black border-black dark:bg-black dark:text-white dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black'
+              }`}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              Grayscale
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        {/* Size slider */}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-black dark:text-white">
+            Size: {gridCount}
+          </label>
+          <input
+            type="range"
+            min="5"
+            max="50"
+            value={gridSlider}
+            onChange={(e) => setGridSlider(Number(e.target.value))}
+            className="w-full h-2 bg-white dark:bg-black border-2 border-black dark:border-white rounded-lg appearance-none cursor-pointer"
+            style={{
+              accentColor: 'black',
+            }}
+          />
+          <div className="flex justify-between text-xs text-black dark:text-white">
+            <span>5</span>
+            <span>50</span>
+          </div>
+        </div>
+
+        {/* Threshold slider - only shown in grayscale mode */}
+        {isGrayscale && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-black dark:text-white">
+              Threshold: {threshold}
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              value={threshold}
+              onChange={(e) => setThreshold(Number(e.target.value))}
+              className="w-full h-2 bg-white dark:bg-black border-2 border-black dark:border-white rounded-lg appearance-none cursor-pointer"
+              style={{
+                accentColor: 'black',
+              }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <div className="flex justify-between text-xs text-black dark:text-white">
+              <span>0</span>
+              <span>50</span>
+            </div>
+          </div>
+        )}
+
+        {/* Image upload button */}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-black dark:text-white">
+            Image Upload
+          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full px-4 py-3 bg-black text-white border-2 border-black dark:bg-white dark:text-black dark:border-white hover:bg-white hover:text-black hover:border-black dark:hover:bg-black dark:hover:text-white dark:hover:border-white transition-colors font-medium"
           >
-            Documentation
-          </a>
+            Select Image
+          </button>
+          {imageUrl && (
+            <button
+              onClick={() => {
+                setImage(null);
+                setImageUrl(null);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+              }}
+              className="w-full px-4 py-2 bg-white text-black border-2 border-black dark:bg-black dark:text-white dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors text-sm"
+            >
+              Remove Image
+            </button>
+          )}
         </div>
-      </main>
+
+        {/* Export buttons */}
+        {image && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-black dark:text-white">
+              Export
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportPNG}
+                className="flex-1 px-4 py-2 bg-black text-white border-2 border-black dark:bg-white dark:text-black dark:border-white hover:bg-white hover:text-black hover:border-black dark:hover:bg-black dark:hover:text-white dark:hover:border-white transition-colors font-medium text-sm"
+              >
+                PNG
+              </button>
+              <button
+                onClick={handleExportSVG}
+                className="flex-1 px-4 py-2 bg-white text-black border-2 border-black dark:bg-black dark:text-white dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors font-medium text-sm"
+              >
+                SVG
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!image && (
+          <div className="flex-1 flex items-center justify-center text-black dark:text-white text-sm">
+            Please upload an image
+          </div>
+        )}
+      </div>
+
+      {/* Right canvas */}
+      <div className="flex-1 flex items-center justify-center bg-white dark:bg-black p-8 overflow-auto relative">
+        {image ? (
+          <div className="bg-white dark:bg-black p-4 border-2 border-black dark:border-white inline-block">
+            <canvas
+              ref={canvasRef}
+              className="max-w-full max-h-[calc(100vh-4rem)]"
+              style={{ display: 'block' }}
+            />
+          </div>
+        ) : (
+          <div className="text-black dark:text-white text-center">
+            <p className="text-lg mb-2">Upload an image to</p>
+            <p className="text-sm">convert it to bitmap</p>
+          </div>
+        )}
+
+        {/* Image selection component - bottom left */}
+        <div className="absolute bottom-8 left-8 flex gap-3">
+          {[1, 2, 3, 4, 5].map((num) => {
+            const exampleUrl = `/examples/${String(num).padStart(2, '0')}.jpg`;
+            const isSelected = imageUrl === exampleUrl;
+            return (
+              <button
+                key={num}
+                onClick={() => loadExampleImage(num)}
+                className={`w-16 h-16 rounded-full overflow-hidden border-2 transition-all hover:scale-110 ${
+                  isSelected
+                    ? 'border-black dark:border-white'
+                    : 'border-black dark:border-white'
+                }`}
+                style={{
+                  backgroundImage: `url(${exampleUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
