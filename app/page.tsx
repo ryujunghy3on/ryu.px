@@ -1,5 +1,6 @@
 'use client';
 
+import localFont from 'next/font/local';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   processImageToBitmap,
@@ -12,6 +13,11 @@ import {
   type PaletteMethod,
   type RGB,
 } from './lib/imageProcessor';
+
+const sdAutoPilot = localFont({
+  src: './fonts/sd_auto_pilot.ttf',
+  display: 'swap',
+});
 
 const DEFAULT_EXAMPLE = '/examples/01.png';
 
@@ -177,8 +183,10 @@ export default function Home() {
       {/* Left control panel */}
       <div className="w-80 bg-white dark:bg-black border-r border-black dark:border-white p-6 flex flex-col gap-6 overflow-y-auto">
         {/* Logo */}
-        <div className="text-2xl font-bold tracking-tight text-black dark:text-white">
-          rrrryu
+        <div
+          className={`${sdAutoPilot.className} text-2xl tracking-tight text-black dark:text-white`}
+        >
+          ryu.px
         </div>
 
         {/* Processing Mode Tabs */}
